@@ -175,40 +175,45 @@ GuestBootResult GuestLauncher::Boot(const std::string& elf_path, size_t instruct
         if (phdr[i].p_flags == 0) {
             continue;
         }
-        const uint64_t gva = program->base_addr + phdr[i].p_vaddr;
-        const size_t memsz = static_cast<size_t>(phdr[i].p_memsz);
+        constexpr uint64_t kPage = 0x1000;
+        const uint64_t vaddr = program->base_addr + phdr[i].p_vaddr;
+        const uint64_t base = vaddr & ~(kPage - 1);   // page-align down
+        const uint64_t map_end = (vaddr + phdr[i].p_memsz + kPage - 1) & ~(kPage - 1);
+        const size_t map_size = static_cast<size_t>(map_end - base);
+        const size_t in_page_off = static_cast<size_t>(vaddr - base);
         const uint32_t final_prot = FlagsToProt(phdr[i].p_flags);
-        const uint64_t base = vmm.AllocateVirtual(gva, memsz, kRwProt);
-        if (base == 0) {
-            result.error = "segment mapping collision at GVA 0x" +
-                           std::to_string(gva);
+        const uint64_t alloc = vmm.AllocateVirtual(base, map_size, kRwProt);
+        if (alloc == 0) {
+            result.error = "segment mapping failed at GVA 0x" +
+                           std::to_string(vaddr);
             return result;
         }
         bool ok = true;
         if (phdr[i].p_filesz != 0) {
             ok = phdr[i].p_offset <= image->Size() &&
                  phdr[i].p_filesz <= image->Size() - phdr[i].p_offset &&
-                 vmm.CopyToGuest(base, image->Data() + phdr[i].p_offset,
+                 vmm.CopyToGuest(alloc + in_page_off,
+                                 image->Data() + phdr[i].p_offset,
                                  static_cast<size_t>(phdr[i].p_filesz), kRwProt);
         }
         if (ok && phdr[i].p_memsz > phdr[i].p_filesz) {
-            ok = vmm.ZeroGuest(base + phdr[i].p_filesz,
+            ok = vmm.ZeroGuest(alloc + in_page_off + phdr[i].p_filesz,
                                static_cast<size_t>(phdr[i].p_memsz - phdr[i].p_filesz));
         }
         if (ok) {
-            ok = vmm.ProtectVirtual(base, memsz, final_prot);
+            ok = vmm.ProtectVirtual(alloc, map_size, final_prot);
         }
         if (!ok) {
             result.error = "segment copy/protect failed";
-            vmm.FreeVirtual(base, memsz);
+            vmm.FreeVirtual(alloc, map_size);
             return result;
         }
-        mapped_bases.push_back(base);
-        mapped_sizes.push_back(memsz);
+        mapped_bases.push_back(alloc);
+        mapped_sizes.push_back(map_size);
         result.segments_mapped++;
         if ((final_prot & static_cast<uint32_t>(PageProt::Exec)) != 0) {
-            exec_ranges_lo.push_back(base);
-            exec_ranges_hi.push_back(base + memsz);
+            exec_ranges_lo.push_back(alloc);
+            exec_ranges_hi.push_back(alloc + map_size);
         }
     }
     if (mapped_bases.empty()) {
