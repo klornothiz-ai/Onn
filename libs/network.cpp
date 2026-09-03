@@ -3076,6 +3076,9 @@ int KYTY_SYSV_ABI HttpSetNonblock(int id, int enable) {
              "\t enable = %d\n",
              id, enable);
 
+        if (g_net == nullptr) {
+                return HTTP_ERROR_INVALID_ID;
+        }
         if (!g_net->HttpSetNonblock(Network::Id(id), enable != 0)) {
                 return HTTP_ERROR_INVALID_ID;
         }
@@ -3088,6 +3091,9 @@ int KYTY_SYSV_ABI HttpsSetSslCallback(int id, HttpsCallback cbfunc, void* user_a
 
         LOGF("\t id     = %d\n", id);
 
+        if (g_net == nullptr) {
+                return HTTP_ERROR_INVALID_ID;
+        }
         if (!g_net->HttpsSetSslCallback(Network::Id(id), cbfunc, user_arg)) {
                 return HTTP_ERROR_INVALID_ID;
         }
@@ -3102,6 +3108,9 @@ int KYTY_SYSV_ABI HttpsSetMinSslVersion(int id, uint32_t ssl_version) {
              "\t ssl_version = %u\n",
              id, ssl_version);
 
+        if (g_net == nullptr) {
+                return HTTP_ERROR_INVALID_ID;
+        }
         if (!g_net->HttpsSetMinSslVersion(Network::Id(id), ssl_version)) {
                 return HTTP_ERROR_INVALID_ID;
         }
@@ -3116,6 +3125,9 @@ int KYTY_SYSV_ABI HttpsDisableOption(int id, uint32_t ssl_flags) {
              "\t ssl_flags = %u\n",
              id, ssl_flags);
 
+        if (g_net == nullptr) {
+                return HTTP_ERROR_INVALID_ID;
+        }
         if (!g_net->HttpsDisableOption(Network::Id(id), ssl_flags)) {
                 return HTTP_ERROR_INVALID_ID;
         }
@@ -3129,6 +3141,8 @@ int KYTY_SYSV_ABI HttpSetResolveTimeOut(int id, uint32_t usec) {
         LOGF("\t id   = %d\n"
              "\t usec = %u\n",
              id, usec);
+
+        EXIT_IF(g_net == nullptr);
 
         if (!g_net->HttpSetResolveTimeOut(Network::Id(id), usec)) {
                 return HTTP_ERROR_INVALID_ID;
@@ -3144,6 +3158,8 @@ int KYTY_SYSV_ABI HttpSetResolveRetry(int id, int32_t retry) {
              "\t retry = %d\n",
              id, retry);
 
+        EXIT_IF(g_net == nullptr);
+
         if (!g_net->HttpSetResolveRetry(Network::Id(id), retry)) {
                 return HTTP_ERROR_INVALID_ID;
         }
@@ -3157,6 +3173,8 @@ int KYTY_SYSV_ABI HttpSetConnectTimeOut(int id, uint32_t usec) {
         LOGF("\t id   = %d\n"
              "\t usec = %u\n",
              id, usec);
+
+        EXIT_IF(g_net == nullptr);
 
         if (!g_net->HttpSetConnectTimeOut(Network::Id(id), usec)) {
                 return HTTP_ERROR_INVALID_ID;
@@ -3172,6 +3190,8 @@ int KYTY_SYSV_ABI HttpSetSendTimeOut(int id, uint32_t usec) {
              "\t usec = %u\n",
              id, usec);
 
+        EXIT_IF(g_net == nullptr);
+
         if (!g_net->HttpSetSendTimeOut(Network::Id(id), usec)) {
                 return HTTP_ERROR_INVALID_ID;
         }
@@ -3185,6 +3205,8 @@ int KYTY_SYSV_ABI HttpSetRecvTimeOut(int id, uint32_t usec) {
         LOGF("\t id   = %d\n"
              "\t usec = %u\n",
              id, usec);
+
+        EXIT_IF(g_net == nullptr);
 
         if (!g_net->HttpSetRecvTimeOut(Network::Id(id), usec)) {
                 return HTTP_ERROR_INVALID_ID;
@@ -3200,6 +3222,8 @@ int KYTY_SYSV_ABI HttpSetAutoRedirect(int id, int enable) {
              "\t enable = %d\n",
              id, enable);
 
+        EXIT_IF(g_net == nullptr);
+
         if (!g_net->HttpSetAutoRedirect(Network::Id(id), enable)) {
                 return HTTP_ERROR_INVALID_ID;
         }
@@ -3213,6 +3237,8 @@ int KYTY_SYSV_ABI HttpSetAuthEnabled(int id, int enable) {
         LOGF("\t id     = %d\n"
              "\t enable = %d\n",
              id, enable);
+
+        EXIT_IF(g_net == nullptr);
 
         if (!g_net->HttpSetAuthEnabled(Network::Id(id), enable)) {
                 return HTTP_ERROR_INVALID_ID;
@@ -3231,6 +3257,8 @@ int KYTY_SYSV_ABI HttpAddRequestHeader(int id, const char* name, const char* val
              id, name, value, mode);
 
         EXIT_NOT_IMPLEMENTED(mode != 0 && mode != 1);
+
+        EXIT_IF(g_net == nullptr);
 
         if (!g_net->HttpAddRequestHeader(Network::Id(id), name, value, mode == 1)) {
                 return HTTP_ERROR_INVALID_ID;
@@ -3280,6 +3308,8 @@ int KYTY_SYSV_ABI HttpSetEpoll(int id, HttpEpollHandle eh, void* user_arg) {
 
         EXIT_NOT_IMPLEMENTED(eh == nullptr);
 
+        EXIT_IF(g_net == nullptr);
+
         EXIT_NOT_IMPLEMENTED(!g_net->HttpValidRequest(Network::Id(id)));
 
         eh->request_id = Network::Id(id);
@@ -3292,6 +3322,8 @@ int KYTY_SYSV_ABI HttpUnsetEpoll(int id) {
         PRINT_NAME();
 
         LOGF("\t id = %d\n", id);
+
+        EXIT_IF(g_net == nullptr);
 
         EXIT_NOT_IMPLEMENTED(!g_net->HttpValidRequest(Network::Id(id)));
 

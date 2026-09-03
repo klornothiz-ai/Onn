@@ -366,12 +366,12 @@ $(PM4_EVENTS_TEST): tests/pm4_events_dma_test.cpp src/gpu/pm4_decoder.cpp src/gp
 # Round 29: libSceRandom real kernel entropy (getrandom(2) replaces the
 # fixed-seed LCG) + the fsync NID going through the real host descriptor.
 $(HLE_ENTROPY_TEST): tests/hle_entropy_test.cpp libs/libNet.cpp libs/network.cpp libs/ps_errno.cpp $(UNIT_HEADERS) | $(TEST_BIN_DIR)
-	$(CXX) $(TEST_CXXFLAGS) -Wno-error=nonnull $(filter %.cpp,$^) -o $@ $(LDFLAGS)
+	$(CXX) $(TEST_CXXFLAGS) $(filter %.cpp,$^) -o $@ $(LDFLAGS)
 
 # Round 28: the real POSIX socket backend (loopback TCP lifecycle through the
 # guest-facing libSceNet wrappers + FreeBSD errno translation + NIDs).
 $(NET_SOCKETS_TEST): tests/net_sockets_test.cpp libs/libNet.cpp libs/network.cpp libs/ps_errno.cpp $(UNIT_HEADERS) | $(TEST_BIN_DIR)
-	$(CXX) $(TEST_CXXFLAGS) -Wno-error=nonnull $(filter %.cpp,$^) -o $@ $(LDFLAGS)
+	$(CXX) $(TEST_CXXFLAGS) $(filter %.cpp,$^) -o $@ $(LDFLAGS)
 
 # Round 28: save-data persistence (PARAM.bin + icon0.png through the mounted
 # save directory, surviving umount/remount cycles).

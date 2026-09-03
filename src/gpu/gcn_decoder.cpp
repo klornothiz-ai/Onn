@@ -5,6 +5,7 @@
 #include "gpu/gpu_guest_memory.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstring>
 
@@ -822,6 +823,7 @@ GcnSwExecResult GcnSwExecutor::Run(const uint32_t* code, size_t dwords, size_t l
                             // 64-bit move from a single 32-bit source: lo = src,
                             // hi = 0 (documented simplification).
                             // Guard against OOB: dst+1 must be within SGPR bounds.
+                            assert(static_cast<size_t>(ins.dst) + 1 < GcnSwExecutor::kSgprCount);
                             if (static_cast<size_t>(ins.dst) + 1 >= GcnSwExecutor::kSgprCount) {
                                 res.error = "S_MOV_B64 sdst+1 out of bounds";
                                 return res;
@@ -974,6 +976,7 @@ GcnSwExecResult GcnSwExecutor::Run(const uint32_t* code, size_t dwords, size_t l
                     // Defensive bounds check: VOP1 dst is 8-bit (0..255) which
                     // matches kVgprCount=256 exactly, but corrupted bytecode
                     // could still encode an out-of-range index.
+                    assert(static_cast<size_t>(ins.dst) < GcnSwExecutor::kVgprCount);
                     if (static_cast<size_t>(ins.dst) >= GcnSwExecutor::kVgprCount) {
                         res.error = "VOP1 dst out of VGPR bounds";
                         return res;
@@ -1016,6 +1019,7 @@ GcnSwExecResult GcnSwExecutor::Run(const uint32_t* code, size_t dwords, size_t l
                     break;
                 }
                 case GcnFormat::VOP2: {
+                    assert(static_cast<size_t>(ins.dst) < GcnSwExecutor::kVgprCount);
                     if (static_cast<size_t>(ins.dst) >= GcnSwExecutor::kVgprCount) {
                         res.error = "VOP2 dst out of VGPR bounds";
                         return res;
@@ -1062,6 +1066,7 @@ GcnSwExecResult GcnSwExecutor::Run(const uint32_t* code, size_t dwords, size_t l
                     break;
                 }
                 case GcnFormat::VOP3: {
+                    assert(static_cast<size_t>(ins.dst) < GcnSwExecutor::kVgprCount);
                     if (static_cast<size_t>(ins.dst) >= GcnSwExecutor::kVgprCount) {
                         res.error = "VOP3 dst out of VGPR bounds";
                         return res;
