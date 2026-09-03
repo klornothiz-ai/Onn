@@ -46,15 +46,23 @@
   boots through the CLI and executes a guest syscall (`exit 42`). The
   non-page-aligned PT_LOAD abort ("segment mapping collision") was fixed and is
   covered by `boot_unaligned_ptload_test`.
+- Round 34: exception/exit handling — the guest `exit` syscall now stops the
+  run (instead of executing dead code) and its code is propagated into the
+  `prospero-run` process exit status (`exit_code_propagation_test`).
+- Round 34 wiring: the HLE graphics-driver submit path no longer aborts on a
+  null renderer. `Graphics::WindowInit` now returns the headless GPU bridge and
+  `g_renderer` is bootstrapped lazily, so a real guest DCB/ACB flows
+  HLE → PM4 translator → GPU backend (`hle_single_path_test`), and the boot
+  path binds the VMM-backed `GpuGuestMemory` so real compute reads/writes the
+  guest arena (`boot_binds_guest_mem_test`). This is a wiring/composition
+  milestone, not a fidelity claim: the backend still runs the reference path
+  without a Vulkan ICD.
 - Known structural limit: the guest arena is identity-mapped at
   `0x1000000000` (64 GiB) for the direct-execution backend, so a conventional
   host **ET_EXEC** at link-time `0x400000` cannot load. PS5 eboots are
   ET_SCE_DYNEXEC (PIE, high addresses) and are unaffected. Supporting low-address
   ET_EXEC would need a second, non-identity guest arena — a deliberate future
   decision, not a quick fix.
-- Also: the guest `exit` syscall is caught but not yet propagated into the
-  process exit code reported by the CLI — close that to make exit-code reports
-  honest.
 - Acceptance: add an integration test that runs `prospero-run` on a synthesized
   ELF and asserts `exit_code` and `syscalls_intercepted > 0`.
 - Unknown-ISA verdicts: any instruction the interpreter can't execute must fail
@@ -64,6 +72,10 @@
 - Goal: replace the *stub* backends that games hit on the boot path first
   (`libGraphicsDriver`, `libVideoOut`, `libDebug`) with behaviorally real,
   host-backed implementations, driven by PM4/video-out state already tracked.
+- Round 34: the graphics submit path reaches the real PM4 translator + GPU
+  backend and is bound to the VMM-backed guest memory (see Stage 1); the
+  remaining work is per-packet fidelity (data packets beyond the reference
+  viewport/draw counters), which lives in Stage 3.
 - Rationale: games do not "run" until the graphics subsystem stops returning OK
   while doing nothing. Start with the smallest honest surface that a homebrew
   payload actually exercises.

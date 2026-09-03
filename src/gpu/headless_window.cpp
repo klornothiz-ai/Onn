@@ -1,6 +1,7 @@
 #include "graphics/presentation/window.h"
 #include "graphics/presentation/renderDoc.h"
 #include "graphics/host_gpu/headless_gpu_bridge.hpp"
+#include "gpu/vmm_gpu_memory.hpp"
 
 // Headless WindowInit / WindowShutdown.
 //
@@ -17,6 +18,9 @@ namespace Graphics {
 namespace {
 
 HeadlessGpuBridge* g_headless_window = nullptr;
+// Owned alongside the bridge: the VMM-backed guest-memory accessor the bridge
+// binds for real GPU compute over the guest's actual address space.
+PS5::GPU::VmmGpuMemory* g_guest_memory = nullptr;
 
 } // namespace
 
@@ -31,7 +35,14 @@ bool RenderDocIsCaptureInProgress() {
 RenderContext& WindowInit(uint32_t /*width*/, uint32_t /*height*/) {
     if (g_headless_window == nullptr) {
         static HeadlessGpuBridge bridge;
+        static PS5::GPU::VmmGpuMemory guest_memory;
         g_headless_window = &bridge;
+        g_guest_memory = &guest_memory;
+        // Bind the real VMM-backed guest memory so the boot path drives real
+        // GPU compute (shader + SSBO reads/writes) over the guest's address
+        // space instead of staying on the CPU-sim reference path. Safe when no
+        // Vulkan device is present: the bridge falls back to the legacy path.
+        bridge.EnableRealCompute(&guest_memory);
     }
     return *g_headless_window;
 }
@@ -40,6 +51,7 @@ void WindowShutdown() {
     // The bridge is a process-lifetime singleton owned here; ShutdownGpu is
     // invoked via the RenderContext teardown in the Graphics subsystem destroy.
     g_headless_window = nullptr;
+    g_guest_memory = nullptr;
 }
 
 } // namespace Graphics

@@ -15,20 +15,21 @@ namespace PS5::GPU {
 
 class VmmGpuMemory final : public GpuGuestMemory {
 public:
-    explicit VmmGpuMemory(VirtualMemoryManager& vmm = VirtualMemoryManager::Instance())
+    explicit VmmGpuMemory(
+        PS5::Memory::VirtualMemoryManager& vmm = PS5::Memory::VirtualMemoryManager::Instance())
         : m_vmm(vmm) {}
 
     bool ReadDwords(uint64_t gva, uint32_t* dst, size_t dwords) override {
         return m_vmm.CopyFromGuest(gva, dst, dwords * sizeof(uint32_t),
-                                   static_cast<uint32_t>(PageProt::Read));
+                                   static_cast<uint32_t>(PS5::Memory::PageProt::Read));
     }
     bool WriteDwords(uint64_t gva, const uint32_t* src, size_t dwords) override {
         return m_vmm.CopyToGuest(gva, src, dwords * sizeof(uint32_t),
-                                 static_cast<uint32_t>(PageProt::Write));
+                                 static_cast<uint32_t>(PS5::Memory::PageProt::Write));
     }
 
 private:
-    VirtualMemoryManager& m_vmm;
+    PS5::Memory::VirtualMemoryManager& m_vmm;
 };
 
 } // namespace PS5::GPU

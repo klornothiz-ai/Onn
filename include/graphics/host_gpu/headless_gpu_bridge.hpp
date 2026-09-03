@@ -59,6 +59,11 @@ public:
     }
     bool RealComputeActive() const { return m_real_compute_active; }
 
+    // What guest-memory accessor the bridge is bound to for real compute
+    // reads/writes (nullptr when none / legacy path only). Read-only
+    // observability so tests can assert the boot path wired VMM-backed memory.
+    PS5::GPU::GpuGuestMemory* GuestMemory() const { return m_guest_memory; }
+
     // --- Observability (for tests / diagnostics) ---
     PS5::GPU::VulkanRendererBackend&       Backend() { return m_backend; }
     const PS5::GPU::VulkanRendererBackend& Backend() const { return m_backend; }
