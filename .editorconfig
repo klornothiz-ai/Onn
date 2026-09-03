@@ -1,0 +1,289 @@
+# EditorConfig - https://editorconfig.org
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cpp,h,hpp}]
+indent_style = space
+indent_size = 4
+max_line_length = 100
+
+[*.{c}]
+indent_style = space
+indent_size = 4
+max_line_length = 100
+
+[*.{py}]
+indent_style = space
+indent_size = 4
+
+[*.{js,ts,jsx,tsx}]
+indent_style = space
+indent_size = 2
+
+[*.{json,yaml,yml}]
+indent_style = space
+indent_size = 2
+
+[*.{md}]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = false
+
+[Makefile]
+indent_style = tab
+
+[CMakeLists.txt]
+indent_style = space
+indent_size = 4
+
+[*.cmake]
+indent_style = space
+indent_size = 4
+
+[*.{sh,bash}]
+indent_style = space
+indent_size = 4
+
+[*.{cmake}]
+indent_style = space
+indent_size = 4
+
+[*.{txt}]
+indent_style = space
+indent_size = 4
+
+[*.{xml}]
+indent_style = space
+indent_size = 2
+
+[*.{html}]
+indent_style = space
+indent_size = 2
+
+[*.{css}]
+indent_style = space
+indent_size = 2
+
+[*.{conf,ini}]
+indent_style = space
+indent_size = 4
+
+[*.md]
+indent_style = space
+indent_size = 2
+
+[*.{go}]
+indent_style = tab
+
+[*.{rs}]
+indent_style = space
+indent_size = 4
+
+[*.{java}]
+indent_style = space
+indent_size = 4
+
+[*.{rb}]
+indent_style = space
+indent_size = 2
+
+[*.{php}]
+indent_style = space
+indent_size = 4
+
+[*.{swift}]
+indent_style = space
+indent_size = 4
+
+[*.{kt}]
+indent_style = space
+indent_size = 4
+
+[*.{scala}]
+indent_style = space
+indent_size = 2
+
+[*.{r,R}]
+indent_style = space
+indent_size = 2
+
+[*.{pl,pm}]
+indent_style = space
+indent_size = 4
+
+[*.{lua}]
+indent_style = space
+indent_size = 4
+
+[*.{ex,exs}]
+indent_style = space
+indent_size = 2
+
+[*.{erl,hrl}]
+indent_style = space
+indent_size = 4
+
+[*.{hs}]
+indent_style = space
+indent_size = 4
+
+[*.{ml,mli}]
+indent_style = space
+indent_size = 2
+
+[*.{clj,cljs,cljc}]
+indent_style = space
+indent_size = 2
+
+[*.{dart}]
+indent_style = space
+indent_size = 2
+
+[*.{vue}]
+indent_style = space
+indent_size = 2
+
+[*.{svelte}]
+indent_style = space
+indent_size = 2
+
+[*.{astro}]
+indent_style = space
+indent_size = 2
+
+[*.{svelte}]
+indent_style = space
+indent_size = 2
+
+[*.{graphql,gql}]
+indent_style = space
+indent_size = 2
+
+[*.{proto}]
+indent_style = space
+indent_size = 2
+
+[*.{tf}]
+indent_style = space
+indent_size = 2
+
+[*.{hcl}]
+indent_style = space
+indent_size = 2
+
+[*.{nix}]
+indent_style = space
+indent_size = 2
+
+[*.{zig}]
+indent_style = space
+indent_size = 4
+
+[*.{v}]
+indent_style = space
+indent_size = 4
+
+[*.{nim}]
+indent_style = space
+indent_size = 4
+
+[*.{jl}]
+indent_style = space
+indent_size = 4
+
+[*.{rkt}]
+indent_style = space
+indent_size = 2
+
+[*.{lisp,lsp}]
+indent_style = space
+indent_size = 2
+
+[*.{el}]
+indent_style = space
+indent_size = 2
+
+[*.{scheme}]
+indent_style = space
+indent_size = 2
+
+[*.{clojure}]
+indent_style = space
+indent_size = 2
+
+[*.{racket}]
+indent_style = space
+indent_size = 2
+
+[*.{f,f90,f95,f03,f08}]
+indent_style = space
+indent_size = 6
+
+[*.{cbl,cpy}]
+indent_style = space
+indent_size = 7
+
+[*.{pas,dpr,dpk}]
+indent_style = space
+indent_size = 2
+
+[*.{vhd,vhdl}]
+indent_style = space
+indent_size = 2
+
+[*.{v}]
+indent_style = space
+indent_size = 2
+
+[*.{sv,svh}]
+indent_style = space
+indent_size = 2
+
+[*.{vhd}]
+indent_style = space
+indent_size = 2
+
+[*.{vhdl}]
+indent_style = space
+indent_size = 2
+
+[*.{adb,ads}]
+indent_style = space
+indent_size = 3
+
+[*.{gpr}]
+indent_style = space
+indent_size = 2
+
+[*.{adb}]
+indent_style = space
+indent_size = 3
+
+[*.{ads}]
+indent_style = space
+indent_size = 3
+
+[*.{a}]
+indent_style = space
+indent_size = 3
+
+[*.{ads}]
+indent_style = space
+indent_size = 3
+
+[*.{adb}]
+indent_style = space
+indent_size = 3
+
+[*.{ads}]
+indent_style = space
+indent_size = 3
+
+[*.{gpr}]
+indent_style = space
+indent_size = 2
