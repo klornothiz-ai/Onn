@@ -222,6 +222,15 @@ uint64_t CPUJitEngine::ExecuteGuestFull(uint64_t entry_gva, uint64_t arg0,
         const uint64_t ret = ProsperoSyscallDispatcher::Instance().Dispatch(ctx);
         s.gpr[RAX] = ret;
         m_intercepted_syscalls.fetch_add(1, std::memory_order_relaxed);
+        // A guest exit() is process-terminating: stop the run here instead of
+        // continuing through the dead code after the syscall, and carry the
+        // guest's code out through the same unwind path as thr_exit.
+        if (ProsperoSyscallDispatcher::Instance().ExitRequested()) {
+            m_last_thread_exit_code =
+                ProsperoSyscallDispatcher::Instance().ExitCode();
+            m_thread_exit_requested = true;
+            return false;
+        }
         return true;
     };
 

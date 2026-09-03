@@ -104,5 +104,11 @@ int main(int argc, char** argv) {
         return 1;
     }
     std::cout << PS5::Boot::FormatSummary(report) << "\n";
+    // Propagate the guest's exit code into the runner's process exit so the
+    // CLI honestly reflects what the guest requested (e.g. a homebrew payload
+    // that calls exit(42) yields a 42 exit status).
+    if (report.booted) {
+        return static_cast<int>(report.exit_code);
+    }
     return 0;
 }
