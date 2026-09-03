@@ -1,0 +1,185 @@
+{
+  "project": {
+    "name": "ProsperoLayer RDNA2 Core",
+    "version": "19.0.0",
+    "description": "Research-oriented PS4/PS5 emulation prototype",
+    "license": "MIT",
+    "repository": "https://github.com/prosperolayer/rdna2-core",
+    "authors": [
+      {
+        "name": "ProsperoLayer Team",
+        "email": "team@prosperolayer.dev"
+      }
+    ]
+  },
+  "build": {
+    "compiler": {
+      "cxx": "g++",
+      "cc": "gcc",
+      "standard": "c++20",
+      "flags": {
+        "optimization": ["-O2", "-Wall", "-Wextra", "-Wpedantic"],
+        "debug": ["-g", "-O0", "-Wall", "-Wextra", "-Wpedantic"],
+        "release": ["-O3", "-march=native", "-Wall", "-Wextra", "-Wpedantic"],
+        "sanitize": ["-fsanitize=address", "-fsanitize=undefined", "-g"]
+      }
+    },
+    "dependencies": {
+      "required": [],
+      "optional": [
+        {
+          "name": "SDL2",
+          "package": "libsdl2-dev",
+          "purpose": "Windowed graphics output",
+          "required_for": ["windowed_mode"]
+        },
+        {
+          "name": "FFmpeg",
+          "packages": ["libavcodec-dev", "libavformat-dev", "libavutil-dev", "libswresample-dev", "libswscale-dev"],
+          "purpose": "Video decoding",
+          "required_for": ["video_playback"]
+        },
+        {
+          "name": "nlohmann-json",
+          "package": "nlohmann-json3-dev",
+          "purpose": "JSON parsing",
+          "required_for": ["json_support"]
+        },
+        {
+          "name": "fmt",
+          "package": "libfmt-dev",
+          "purpose": "String formatting",
+          "required_for": ["formatted_output"]
+        }
+      ]
+    },
+    "targets": {
+      "main": {
+        "name": "ps5_native_vulkan_emulator",
+        "type": "executable",
+        "sources": ["src/**/*.cpp", "libs/**/*.cpp"],
+        "exclude": ["libs/controller_stub.cpp", "libs/dialog_kernel_stub.cpp"]
+      },
+      "runner": {
+        "name": "prospero-run",
+        "type": "executable",
+        "sources": ["src/prospero_cli.cpp", "src/loader/elf_loader.cpp", "src/loader/game_folder.cpp", "src/memory/virtual_memory_manager.cpp"]
+      },
+      "tests": {
+        "cpu_interpreter": {
+          "name": "cpu_interpreter_test",
+          "sources": ["tests/cpu_interpreter_test.cpp", "src/cpu/x86_64_subset_interpreter.cpp"]
+        },
+        "jit_executor": {
+          "name": "jit_executor_test",
+          "sources": ["tests/jit_executor_test.cpp", "src/cpu/jit_executor.cpp", "src/cpu/x86_64_subset_interpreter.cpp", "src/memory/virtual_memory_manager.cpp"]
+        },
+        "vmm_elf_loader": {
+          "name": "vmm_elf_loader_test",
+          "sources": ["tests/vmm_elf_loader_test.cpp", "src/memory/virtual_memory_manager.cpp", "src/loader/elf_loader.cpp"]
+        },
+        "pm4_decoder": {
+          "name": "pm4_decoder_test",
+          "sources": ["tests/pm4_decoder_test.cpp", "src/gpu/pm4_decoder.cpp", "src/gpu/pm4_translator.cpp"]
+        },
+        "rdna2_spirv": {
+          "name": "rdna2_spirv_recompiler_test",
+          "sources": ["tests/rdna2_spirv_recompiler_test.cpp", "src/gpu/shader_spirv_recompiler.cpp"]
+        },
+        "gpu_backend": {
+          "name": "gpu_backend_state_test",
+          "sources": ["tests/gpu_backend_state_test.cpp", "src/gpu/vulkan_backend.cpp"]
+        },
+        "game_folder": {
+          "name": "game_folder_test",
+          "sources": ["tests/game_folder_test.cpp", "src/loader/game_folder.cpp"]
+        }
+      }
+    }
+  },
+  "testing": {
+    "framework": "custom",
+    "test_directory": "build/tests",
+    "test_timeout": 30,
+    "parallel": true,
+    "verbose": false,
+    "coverage": {
+      "enabled": false,
+      "format": "html",
+      "output": "build/coverage"
+    }
+  },
+  "code_quality": {
+    "formatting": {
+      "tool": "clang-format",
+      "config": ".clang-format",
+      "auto_format": true
+    },
+    "linting": {
+      "tool": "clang-tidy",
+      "checks": [
+        "bugprone-*",
+        "cppcoreguidelines-*",
+        "modernize-*",
+        "performance-*",
+        "readability-*"
+      ],
+      "auto_fix": false
+    },
+    "static_analysis": {
+      "tool": "cppcheck",
+      "enabled": true,
+      "severity": "warning"
+    }
+  },
+  "documentation": {
+    "generator": "doxygen",
+    "config": "Doxyfile",
+    "output_dir": "docs/api",
+    "format": ["html", "latex", "man"]
+  },
+  "deployment": {
+    "artifacts": {
+      "binary": "ps5_native_vulkan_emulator",
+      "runner": "prospero-run",
+      "tests": "build/tests/*"
+    },
+    "packaging": {
+      "format": "tar.gz",
+      "include": ["bin", "lib", "share"],
+      "exclude": ["*.o", "*.d", ".git", "build"]
+    }
+  },
+  "development": {
+    "ide": {
+      "vscode": {
+        "settings": {
+          "cpp_standard": "c++20",
+          "compile_commands": "build/compile_commands.json"
+        }
+      },
+      "clion": {
+        "cmake": {
+          "build_dir": "build/cmake",
+          "configurations": ["Debug", "Release", "RelWithDebInfo"]
+        }
+      }
+    },
+    "git": {
+      "ignore": [
+        "*.o",
+        "*.d",
+        "*.so",
+        "*.a",
+        "build/",
+        "dist/",
+        ".cache/",
+        "compile_commands.json"
+      ],
+      "hooks": {
+        "pre-commit": ["clang-format", "clang-tidy"],
+        "pre-push": ["make", "test"]
+      }
+    }
+  }
+}

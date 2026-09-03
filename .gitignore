@@ -1,0 +1,20 @@
+# Build artifacts
+build/
+dist/
+*.o
+*.d
+*.so
+*.a
+
+# Stale prebuilt binaries shipped in the source archive (rebuild from source)
+/prospero-run
+/ps5_native_vulkan_emulator
+
+# Hoplite thread metadata (not part of the project)
+.hoplite/
+
+# Tooling
+compile_commands.json
+.cache/
+.idea/
+.vscode/

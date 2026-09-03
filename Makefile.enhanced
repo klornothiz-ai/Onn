@@ -1,0 +1,320 @@
+# ============================================================================
+# ProsperoLayer RDNA2 Core - Enhanced Makefile
+# ============================================================================
+# Version: 2.0.0
+# Description: Enhanced build system for PS5/PS4 emulation prototype
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Configuration
+# ----------------------------------------------------------------------------
+CXX ?= g++
+CC ?= gcc
+AR ?= ar
+RANLIB ?= ranlib
+
+# Platform detection
+UNAME_S := $(shell uname -s 2>/dev/null)
+UNAME_M := $(shell uname -m 2>/dev/null)
+IS_WINDOWS := $(if $(findstring MINGW,$(UNAME_S)),1,$(if $(findstring MSYS,$(UNAME_S)),1,$(if $(findstring CYGWIN,$(UNAME_S)),1,)))
+IS_LINUX := $(if $(findstring Linux,$(UNAME_S)),1,)
+IS_MACOS := $(if $(findstring Darwin,$(UNAME_S)),1,)
+
+# ----------------------------------------------------------------------------
+# Compiler flags
+# ----------------------------------------------------------------------------
+THREAD_FLAGS := $(if $(IS_WINDOWS),,-pthread)
+PLATFORM_LIBS := $(if $(IS_WINDOWS),,-ldl)
+
+# Common flags
+COMMON_CXXFLAGS := -std=c++20 -Wall -Wextra -Wpedantic $(THREAD_FLAGS) -Iinclude -Ilibs -I.
+
+# Build configurations
+CXXFLAGS_DEBUG := $(COMMON_CXXFLAGS) -g -O0 -DDEBUG -D_DEBUG
+CXXFLAGS_RELEASE := $(COMMON_CXXFLAGS) -O3 -march=native -DNDEBUG
+CXXFLAGS_RELWITHDEBINFO := $(COMMON_CXXFLAGS) -O2 -g -DNDEBUG
+CXXFLAGS_ASAN := $(COMMON_CXXFLAGS) -g -O0 -fsanitize=address -fsanitize=undefined -DDEBUG
+CXXFLAGS_COVERAGE := $(COMMON_CXXFLAGS) -g -O0 --coverage -DDEBUG
+
+# Default configuration
+CXXFLAGS ?= $(CXXFLAGS_RELEASE)
+
+# ----------------------------------------------------------------------------
+# Dependency detection
+# ----------------------------------------------------------------------------
+SDL_CFLAGS := $(shell pkg-config --cflags sdl2 2>/dev/null)
+SDL_LIBS := $(shell pkg-config --libs sdl2 2>/dev/null)
+HAVE_SDL := $(if $(SDL_LIBS),1,)
+
+HAVE_FFMPEG := $(if $(wildcard /usr/include/libavcodec/avcodec.h),1,)
+HAVE_JSON := $(if $(wildcard /usr/include/nlohmann/json.hpp),1,)
+HAVE_FMT := $(if $(wildcard /usr/include/fmt/format.h),1,)
+
+# Add SDL flags if available
+ifneq ($(HAVE_SDL),1)
+SDL_CFLAGS :=
+SDL_LIBS :=
+endif
+
+# ----------------------------------------------------------------------------
+# Source files
+# ----------------------------------------------------------------------------
+CORE_SRCS := $(wildcard src/common/*.cpp) \
+	$(wildcard src/cpu/*.cpp) \
+	$(wildcard src/gpu/*.cpp) \
+	$(wildcard src/kernel/*.cpp) \
+	$(wildcard src/loader/*.cpp) \
+	$(wildcard src/memory/*.cpp)
+
+HLE_SRCS := $(wildcard libs/*.cpp) $(wildcard libs/ajm/*.cpp)
+HLE_SRCS := $(filter-out libs/controller_stub.cpp libs/dialog_kernel_stub.cpp,$(HLE_SRCS))
+
+# Conditional HLE sources
+ifneq ($(HAVE_SDL),1)
+HLE_SRCS := $(filter-out libs/audio.cpp libs/libAudio2.cpp libs/libNet.cpp,$(HLE_SRCS))
+endif
+ifneq ($(HAVE_FFMPEG),1)
+HLE_SRCS := $(filter-out libs/libVideoDec2.cpp,$(HLE_SRCS))
+endif
+ifneq ($(HAVE_JSON),1)
+HLE_SRCS := $(filter-out libs/libJson2.cpp,$(HLE_SRCS))
+endif
+ifneq ($(HAVE_FFMPEG),1)
+HLE_SRCS := $(filter-out libs/ajm.cpp libs/avPlayer.cpp libs/videoDec2Decoder.cpp libs/ajm/%.cpp,$(HLE_SRCS))
+endif
+
+# Add Vulkan backend if SDL is available
+ifeq ($(HAVE_SDL),1)
+CORE_SRCS += src/gpu/vulkan_backend.cpp
+endif
+
+SRCS := $(CORE_SRCS) $(HLE_SRCS)
+OBJS := $(SRCS:.cpp=.o)
+CORE_OBJS := $(CORE_SRCS:.cpp=.o)
+
+# ----------------------------------------------------------------------------
+# Targets
+# ----------------------------------------------------------------------------
+TARGET := ps5_native_vulkan_emulator
+RUNNER := prospero-run
+
+# Test binaries
+TEST_BIN_DIR := build/tests
+CPU_TEST := $(TEST_BIN_DIR)/cpu_interpreter_test
+JIT_TEST := $(TEST_BIN_DIR)/jit_executor_test
+VMM_ELF_TEST := $(TEST_BIN_DIR)/vmm_elf_loader_test
+PM4_TEST := $(TEST_BIN_DIR)/pm4_decoder_test
+SPIRV_TEST := $(TEST_BIN_DIR)/rdna2_spirv_recompiler_test
+GPU_TEST := $(TEST_BIN_DIR)/gpu_backend_state_test
+FOLDER_TEST := $(TEST_BIN_DIR)/game_folder_test
+UNIT_TESTS := $(CPU_TEST) $(JIT_TEST) $(VMM_ELF_TEST) $(PM4_TEST) $(SPIRV_TEST) $(GPU_TEST) $(FOLDER_TEST)
+
+# Header files for dependency tracking
+UNIT_HEADERS := $(shell find include -type f -name "*.h" 2>/dev/null)
+
+# ----------------------------------------------------------------------------
+# Output directories
+# ----------------------------------------------------------------------------
+BUILD_DIR := build
+OBJ_DIR := $(BUILD_DIR)/obj
+BIN_DIR := $(BUILD_DIR)/bin
+DOC_DIR := build/docs
+
+# ----------------------------------------------------------------------------
+# Tools
+# ----------------------------------------------------------------------------
+CLANG_FORMAT := clang-format
+CLANG_TIDY := clang-tidy
+CPPCHECK := cppcheck
+DOXYGEN := doxygen
+GCOVR := gcovr
+LCOV := lcov
+
+# ----------------------------------------------------------------------------
+# Default target
+# ----------------------------------------------------------------------------
+.PHONY: all clean test unit format lint analyze doc help info
+
+all: $(TARGET) $(RUNNER)
+	@echo "✅ Build completed successfully!"
+	@echo "   Main binary: $(TARGET)"
+	@echo "   Runner: $(RUNNER)"
+
+# ----------------------------------------------------------------------------
+# Build targets
+# ----------------------------------------------------------------------------
+$(RUNNER): src/prospero_cli.cpp $(RUNNER_OBJS)
+	@mkdir -p $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) $^ $(THREAD_FLAGS) $(PLATFORM_LIBS) -o $(BIN_DIR)/$@
+	@ln -sf $(BIN_DIR)/$@ $@
+
+$(TARGET): $(OBJS) tests/main.o tests/test_simple.o
+	@mkdir -p $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) $(filter-out tests/test_simple.o,$^) $(LDFLAGS) -o $(BIN_DIR)/$@
+	@ln -sf $(BIN_DIR)/$@ $@
+
+# ----------------------------------------------------------------------------
+# Test targets
+# ----------------------------------------------------------------------------
+$(TEST_BIN_DIR):
+	@mkdir -p $@
+
+$(CPU_TEST): tests/cpu_interpreter_test.cpp src/cpu/x86_64_subset_interpreter.cpp $(UNIT_HEADERS) | $(TEST_BIN_DIR)
+	$(CXX) $(CXXFLAGS) $(filter %.cpp,$^) -o $@
+
+$(JIT_TEST): tests/jit_executor_test.cpp src/cpu/jit_executor.cpp src/cpu/x86_64_subset_interpreter.cpp src/memory/virtual_memory_manager.cpp $(UNIT_HEADERS) | $(TEST_BIN_DIR)
+	$(CXX) $(CXXFLAGS) $(filter %.cpp,$^) -o $@
+
+$(VMM_ELF_TEST): tests/vmm_elf_loader_test.cpp src/memory/virtual_memory_manager.cpp src/loader/elf_loader.cpp $(UNIT_HEADERS) | $(TEST_BIN_DIR)
+	$(CXX) $(CXXFLAGS) $(filter %.cpp,$^) -o $@
+
+$(PM4_TEST): tests/pm4_decoder_test.cpp src/gpu/pm4_decoder.cpp src/gpu/pm4_translator.cpp $(UNIT_HEADERS) | $(TEST_BIN_DIR)
+	$(CXX) $(CXXFLAGS) $(filter %.cpp,$^) -o $@
+
+$(SPIRV_TEST): tests/rdna2_spirv_recompiler_test.cpp src/gpu/shader_spirv_recompiler.cpp $(UNIT_HEADERS) | $(TEST_BIN_DIR)
+	$(CXX) $(CXXFLAGS) $(filter %.cpp,$^) -o $@
+
+$(GPU_TEST): tests/gpu_backend_state_test.cpp src/gpu/vulkan_backend.cpp $(UNIT_HEADERS) | $(TEST_BIN_DIR)
+	$(CXX) $(CXXFLAGS) $(filter %.cpp,$^) -o $@
+
+$(FOLDER_TEST): tests/game_folder_test.cpp src/loader/game_folder.cpp $(UNIT_HEADERS) | $(TEST_BIN_DIR)
+	$(CXX) $(CXXFLAGS) $(filter %.cpp,$^) -o $@
+
+# ----------------------------------------------------------------------------
+# Test execution
+# ----------------------------------------------------------------------------
+unit: $(UNIT_TESTS)
+	@echo "🧪 Running unit tests..."
+	@FAILED=0; \
+	for test in $(UNIT_TESTS); do \
+		echo "  Running $$test..."; \
+		./$$test || FAILED=$$((FAILED+1)); \
+	done; \
+	if [ $$FAILED -eq 0 ]; then \
+		echo "✅ All unit tests passed!"; \
+	else \
+		echo "❌ $$FAILED test(s) failed!"; \
+		exit 1; \
+	fi
+
+test: all unit
+	@echo "✅ All tests completed!"
+
+# ----------------------------------------------------------------------------
+# Code quality targets
+# ----------------------------------------------------------------------------
+format:
+	@echo "🎨 Formatting code..."
+	$(CLANG_FORMAT) -i src/**/*.cpp include/**/*.h libs/**/*.cpp tests/**/*.cpp
+	@echo "✅ Code formatted!"
+
+lint:
+	@echo "🔍 Running linter..."
+	$(CLANG_TIDY) -p build src/**/*.cpp --checks="-*,bugprone-*,cppcoreguidelines-*,modernize-*,performance-*,readability-*"
+	@echo "✅ Linting completed!"
+
+analyze:
+	@echo "🔬 Running static analysis..."
+	$(CPPCHECK) --enable=warning,style,performance,portability src/ include/ libs/
+	@echo "✅ Analysis completed!"
+
+# ----------------------------------------------------------------------------
+# Documentation
+# ----------------------------------------------------------------------------
+doc:
+	@echo "📚 Generating documentation..."
+	$(DOXYGEN) Doxyfile
+	@echo "✅ Documentation generated in $(DOC_DIR)/"
+
+# ----------------------------------------------------------------------------
+# Clean
+# ----------------------------------------------------------------------------
+clean:
+	@echo "🧹 Cleaning build artifacts..."
+	rm -rf $(BUILD_DIR) $(TARGET) $(RUNNER) *.o src/**/*.o libs/**/*.o tests/**/*.o
+	rm -rf *.d src/**/*.d libs/**/*.d tests/**/*.d
+	rm -rf *.gcda *.gcno src/**/*.gcda src/**/*.gcno libs/**/*.gcda libs/**/*.gcno
+	@echo "✅ Clean completed!"
+
+# ----------------------------------------------------------------------------
+# Development targets
+# ----------------------------------------------------------------------------
+debug: CXXFLAGS = $(CXXFLAGS_DEBUG)
+debug: clean all
+
+release: CXXFLAGS = $(CXXFLAGS_RELEASE)
+release: clean all
+
+sanitize: CXXFLAGS = $(CXXFLAGS_ASAN)
+sanitize: clean all
+
+coverage: CXXFLAGS = $(CXXFLAGS_COVERAGE)
+coverage: clean all
+	@echo "📊 Running tests with coverage..."
+	@for test in $(UNIT_TESTS); do \
+		./$$test; \
+	done
+	@echo "📈 Generating coverage report..."
+	$(LCOV) --capture --directory . --output-file coverage.info
+	$(LCOV) --remove coverage.info '/usr/*' --output-file coverage_filtered.info
+	genhtml coverage_filtered.info --output-directory build/coverage
+	@echo "✅ Coverage report generated in build/coverage/"
+
+# ----------------------------------------------------------------------------
+# Utility targets
+# ----------------------------------------------------------------------------
+info:
+	@echo "📋 Build Configuration:"
+	@echo "   Compiler: $(CXX)"
+	@echo "   Standard: C++20"
+	@echo "   Platform: $(UNAME_S)"
+	@echo "   Architecture: $(UNAME_M)"
+	@echo "   SDL2: $(if $(HAVE_SDL),Yes,No)"
+	@echo "   FFmpeg: $(if $(HAVE_FFMPEG),Yes,No)"
+	@echo "   JSON: $(if $(HAVE_JSON),Yes,No)"
+	@echo "   fmt: $(if $(HAVE_FMT),Yes,No)"
+	@echo ""
+	@echo "📦 Targets:"
+	@echo "   Main: $(TARGET)"
+	@echo "   Runner: $(RUNNER)"
+	@echo "   Tests: $(words $(UNIT_TESTS))"
+
+help:
+	@echo "📖 ProsperoLayer RDNA2 Core - Build System"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  all        - Build everything (default)"
+	@echo "  clean      - Remove build artifacts"
+	@echo "  test       - Run all tests"
+	@echo "  unit       - Run unit tests only"
+	@echo "  format     - Format source code"
+	@echo "  lint       - Run linter"
+	@echo "  analyze    - Run static analysis"
+	@echo "  doc        - Generate documentation"
+	@echo "  debug      - Build with debug flags"
+	@echo "  release    - Build with release flags"
+	@echo "  sanitize   - Build with sanitizers"
+	@echo "  coverage   - Build with code coverage"
+	@echo "  info       - Show build configuration"
+	@echo "  help       - Show this help message"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make              # Build with default flags"
+	@echo "  make debug        # Build with debug flags"
+	@echo "  make test         # Run all tests"
+	@echo "  make format       # Format all source files"
+	@echo "  make info         # Show build configuration"
+
+# ----------------------------------------------------------------------------
+# Auto-dependency generation
+# ----------------------------------------------------------------------------
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
+
+-include $(OBJS:.o=.d)
+-include $(UNIT_TESTS:.o=.d)
+
+# ----------------------------------------------------------------------------
+# Phony targets
+# ----------------------------------------------------------------------------
+.PHONY: all clean test unit format lint analyze doc debug release sanitize coverage info help
