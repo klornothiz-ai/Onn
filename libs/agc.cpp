@@ -50,7 +50,15 @@ using ::Graphics::WindowShutdown;
 
 static RenderContext* g_renderer = nullptr;
 
-KYTY_SUBSYSTEM_INIT(Graphics) {
+// Lazy renderer bootstrap. The Graphics subsystem init (which sets g_renderer)
+// is not invoked by Libs::InitAll, so without this every guest PM4 submission
+// would abort at EXIT_IF(g_renderer == nullptr). WindowInit resolves to the
+// headless GPU bridge in this build, so a real guest submission flows through
+// the HLE driver -> PM4 translator -> GPU backend.
+static void EnsureGraphicsRenderer() {
+	if (g_renderer != nullptr) {
+		return;
+	}
 	// Some games lock up if this is not called first
 	if (Config::RenderDocEnabled()) {
 		RenderDocInit();
@@ -63,7 +71,11 @@ KYTY_SUBSYSTEM_INIT(Graphics) {
 	auto& video_out = VideoOut::VideoOutInit(width, height, presenter);
 	g_renderer      = &presenter.Renderer();
 	g_renderer->InitializeGpu(&video_out);
-        Libs::Graphics::ShaderInit();
+	Libs::Graphics::ShaderInit();
+}
+
+KYTY_SUBSYSTEM_INIT(Graphics) {
+	EnsureGraphicsRenderer();
 }
 
 KYTY_SUBSYSTEM_UNEXPECTED_SHUTDOWN(Graphics) {}
@@ -1465,6 +1477,7 @@ int KYTY_SYSV_ABI GraphicsJumpPatchSetTarget(uint32_t* cmd, const volatile uint3
 int KYTY_SYSV_ABI GraphicsSuspendPoint() {
 	PRINT_NAME();
 
+	EnsureGraphicsRenderer();
 	EXIT_IF(g_renderer == nullptr);
 	g_renderer->GetGpu().Done();
 
@@ -3832,6 +3845,7 @@ static bool dcb_has_queued_interrupt(const uint32_t* dcb, uint32_t size_in_dword
 
 static void submit_dcb(uint32_t* dcb, uint32_t size_in_dwords) {
 	GraphicsDbgDumpDcb("d", size_in_dwords, dcb);
+	EnsureGraphicsRenderer();
 	EXIT_IF(g_renderer == nullptr);
 	g_renderer->GetGpu().Submit(dcb, size_in_dwords, nullptr, 0,
 	                            !dcb_has_queued_interrupt(dcb, size_in_dwords));
@@ -3953,6 +3967,7 @@ static void submit_acb(uint32_t queue, uint32_t* acb, uint32_t size_in_dwords) {
 	GraphicsDbgDumpDcb("a", size_in_dwords, acb);
 
 	const bool trigger_interrupt_on_done = !dcb_has_queued_interrupt(acb, size_in_dwords);
+	EnsureGraphicsRenderer();
 	EXIT_IF(g_renderer == nullptr);
 	g_renderer->GetGpu().SubmitCompute(queue, acb, size_in_dwords, trigger_interrupt_on_done);
 }
@@ -4007,6 +4022,7 @@ int KYTY_SYSV_ABI GraphicsDriverAddEqEvent(LibKernel::EventQueue::KernelEqueue e
 		return LibKernel::KERNEL_ERROR_EBADF;
 	}
 
+	EnsureGraphicsRenderer();
 	EXIT_IF(g_renderer == nullptr);
 	return Sync::AddEqEvent(*g_renderer, eq, id, udata);
 }

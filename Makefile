@@ -76,6 +76,7 @@ SPIRV_TEST := $(TEST_BIN_DIR)/rdna2_spirv_recompiler_test
 GPU_TEST := $(TEST_BIN_DIR)/gpu_backend_state_test
 FOLDER_TEST := $(TEST_BIN_DIR)/game_folder_test
 BOOT_UNALIGNED_TEST := $(TEST_BIN_DIR)/boot_unaligned_ptload_test
+HLE_SINGLE_PATH_TEST := $(TEST_BIN_DIR)/hle_single_path_test
 VMM_EXPANDED_TEST := $(TEST_BIN_DIR)/vmm_expanded_test
 SYSCALL_TEST := $(TEST_BIN_DIR)/syscall_dispatcher_test
 SYSCALL_EXP_TEST := $(TEST_BIN_DIR)/syscall_kevent_expanded_test
@@ -130,7 +131,7 @@ PM4_VGT_FETCH_TEST := $(TEST_BIN_DIR)/pm4_vgt_fetch_test
 PM4_COLOR_TARGET_TEST := $(TEST_BIN_DIR)/pm4_color_target_test
 PM4_RESOURCE_TEST := $(TEST_BIN_DIR)/pm4_resource_dispatch_test
 VK_GFX_TEST := $(TEST_BIN_DIR)/vk_graphics_pipeline_test
-UNIT_TESTS := $(CPU_TEST) $(JIT_TEST) $(JIT_CHAINING_TEST) $(X86_INTERP_TEST) $(GUEST_EXEC_TEST) $(ELF_EXEC_TEST) $(VMM_ELF_TEST) $(VMM_EXPANDED_TEST) $(SYSCALL_TEST) $(SYSCALL_EXP_TEST) $(HLE_KERNEL_TEST) $(PM4_TEST) $(PM4_TRANSLATOR_TEST) $(HLE_GFX_TEST) $(SPIRV_TEST) $(COMPUTE_CC_TEST) $(VK_COMPUTE_TEST) $(PM4_REAL_COMPUTE_TEST) $(HLE_REAL_COMPUTE_TEST) $(HLE_LIBPAD_TEST) $(AUDIO_SINK_TEST) $(HLE_AUDIO_OUT_TEST) $(FOLDER_TEST) $(PM4_DRAW_TEST) $(PM4_VGT_FETCH_TEST) $(RT_LINKER_TEST) $(KERNEL_EQ_TEST) $(GUEST_BOOT_TEST) $(GCN_DECODER_TEST) $(SOFTWARE_RASTER_TEST) $(SOFTWARE_RASTER_TEX_TEST) $(SOFTWARE_RASTER_BLEND_TEST) $(GUEST_THREADS_TEST) $(CPU_FULL_ISA_TEST) $(SYSCALL_DEPTH_TEST) $(PM4_COLOR_TARGET_TEST) $(PM4_RESOURCE_TEST) $(VK_GFX_TEST) $(GCN_SPIRV_FULL_TEST) $(CPU_AVX256_TEST) $(ET_DYN_BOOT_TEST) $(SYSCALL_FORK_TEST) $(DIRECT_EXEC_TEST) $(SECCOMP_GUARD_TEST) $(GPU_ROUND20_TEST) $(GPU_MEM_EXT_TEST) $(SYSCALL_IO_EXT_TEST) $(CPU_SIMD_DIFF_TEST) $(CPU_X87_TEST) $(GPU_IMAGE_FLAT_TEST) $(GPU_MIMG_TEST) $(GPU_WAVE29_TEST) $(PM4_EVENTS_TEST) $(HLE_ENTROPY_TEST) $(NET_SOCKETS_TEST) $(SAVEDATA_PERSIST_TEST) $(SELF_PARSER_TEST) $(HLE_PLT_TEST) $(LOCK_PREFIX_TEST) $(BOOT_UNALIGNED_TEST) $(EXIT_PROP_TEST)
+UNIT_TESTS := $(CPU_TEST) $(JIT_TEST) $(JIT_CHAINING_TEST) $(X86_INTERP_TEST) $(GUEST_EXEC_TEST) $(ELF_EXEC_TEST) $(VMM_ELF_TEST) $(VMM_EXPANDED_TEST) $(SYSCALL_TEST) $(SYSCALL_EXP_TEST) $(HLE_KERNEL_TEST) $(PM4_TEST) $(PM4_TRANSLATOR_TEST) $(HLE_GFX_TEST) $(SPIRV_TEST) $(COMPUTE_CC_TEST) $(VK_COMPUTE_TEST) $(PM4_REAL_COMPUTE_TEST) $(HLE_REAL_COMPUTE_TEST) $(HLE_LIBPAD_TEST) $(AUDIO_SINK_TEST) $(HLE_AUDIO_OUT_TEST) $(FOLDER_TEST) $(PM4_DRAW_TEST) $(PM4_VGT_FETCH_TEST) $(RT_LINKER_TEST) $(KERNEL_EQ_TEST) $(GUEST_BOOT_TEST) $(GCN_DECODER_TEST) $(SOFTWARE_RASTER_TEST) $(SOFTWARE_RASTER_TEX_TEST) $(SOFTWARE_RASTER_BLEND_TEST) $(GUEST_THREADS_TEST) $(CPU_FULL_ISA_TEST) $(SYSCALL_DEPTH_TEST) $(PM4_COLOR_TARGET_TEST) $(PM4_RESOURCE_TEST) $(VK_GFX_TEST) $(GCN_SPIRV_FULL_TEST) $(CPU_AVX256_TEST) $(ET_DYN_BOOT_TEST) $(SYSCALL_FORK_TEST) $(DIRECT_EXEC_TEST) $(SECCOMP_GUARD_TEST) $(GPU_ROUND20_TEST) $(GPU_MEM_EXT_TEST) $(SYSCALL_IO_EXT_TEST) $(CPU_SIMD_DIFF_TEST) $(CPU_X87_TEST) $(GPU_IMAGE_FLAT_TEST) $(GPU_MIMG_TEST) $(GPU_WAVE29_TEST) $(PM4_EVENTS_TEST) $(HLE_ENTROPY_TEST) $(NET_SOCKETS_TEST) $(SAVEDATA_PERSIST_TEST) $(SELF_PARSER_TEST) $(HLE_PLT_TEST) $(LOCK_PREFIX_TEST) $(BOOT_UNALIGNED_TEST) $(EXIT_PROP_TEST) $(HLE_SINGLE_PATH_TEST)
 
 all: $(TARGET) $(RUNNER)
 
@@ -262,6 +263,14 @@ $(GUEST_BOOT_TEST): tests/guest_boot_test.cpp src/loader/guest_launcher.cpp src/
 # and extend the guest mapping instead of failing the whole boot.
 $(BOOT_UNALIGNED_TEST): tests/boot_unaligned_ptload_test.cpp src/loader/guest_launcher.cpp src/loader/runtime_linker.cpp src/cpu/hle_trampoline.cpp src/kernel/event_queue.cpp src/gpu/video_out_impl.cpp src/cpu/prospero_syscalls.cpp src/cpu/fork_process.cpp src/cpu/guest_threads.cpp src/cpu/thread_scheduler.cpp src/cpu/jit_executor.cpp src/cpu/direct_execution.cpp src/cpu/x86_64_interpreter.cpp src/cpu/x86_64_x87.cpp src/cpu/x86_64_isa_ext.cpp src/cpu/x86_64_simd_full.cpp src/cpu/x86_64_subset_interpreter.cpp src/memory/virtual_memory_manager.cpp src/kernel/event_flag.cpp src/kernel/kernel_managers.cpp $(UNIT_HEADERS) | $(TEST_BIN_DIR)
 	$(CXX) $(TEST_CXXFLAGS) $(filter %.cpp,$^) -o $@
+
+# Round 34 integration: the REAL HLE graphics-driver submit entry must reach
+# the GPU backend through the lazily-bootstrapped headless bridge (not the
+# bridge object directly). Links agc.cpp -- built with the project CXXFLAGS
+# (no -Werror) exactly as in the runner -- plus the graphics pipeline and the
+# loadable CPU/kernel set the video-out/syscall glue pulls in.
+$(HLE_SINGLE_PATH_TEST): tests/hle_single_path_test.cpp libs/agc.cpp src/gpu/headless_gpu_bridge.cpp src/gpu/headless_window.cpp src/gpu/pm4_decoder.cpp src/gpu/pm4_translator.cpp src/gpu/software_rasterizer.cpp src/gpu/vulkan_backend.cpp src/gpu/shader_spirv_recompiler.cpp src/gpu/vulkan_compute_executor.cpp src/gpu/gcn_decoder.cpp src/gpu/rdna2_compute_compiler.cpp src/gpu/shader_impl.cpp src/gpu/sync.cpp src/gpu/video_out_impl.cpp src/cpu/hle_trampoline.cpp src/cpu/jit_executor.cpp src/cpu/direct_execution.cpp src/cpu/prospero_syscalls.cpp src/cpu/fork_process.cpp src/cpu/guest_threads.cpp src/cpu/thread_scheduler.cpp src/cpu/x86_64_interpreter.cpp src/cpu/x86_64_x87.cpp src/cpu/x86_64_isa_ext.cpp src/cpu/x86_64_simd_full.cpp src/cpu/x86_64_subset_interpreter.cpp src/memory/virtual_memory_manager.cpp src/kernel/event_queue.cpp src/kernel/event_flag.cpp src/kernel/kernel_managers.cpp src/kernel/misc_glue.cpp src/common/emulator_config.cpp src/common/file.cpp libs/ps_errno.cpp $(UNIT_HEADERS) | $(TEST_BIN_DIR)
+	$(CXX) $(CXXFLAGS) $(filter %.cpp,$^) -o $@ $(LDFLAGS)
 
 $(GUEST_THREADS_TEST): tests/guest_threads_test.cpp src/cpu/guest_threads.cpp src/cpu/prospero_syscalls.cpp src/cpu/fork_process.cpp src/cpu/thread_scheduler.cpp src/cpu/jit_executor.cpp src/cpu/hle_trampoline.cpp src/cpu/direct_execution.cpp src/cpu/x86_64_interpreter.cpp src/cpu/x86_64_x87.cpp src/cpu/x86_64_isa_ext.cpp src/cpu/x86_64_simd_full.cpp src/cpu/x86_64_subset_interpreter.cpp src/memory/virtual_memory_manager.cpp src/kernel/event_flag.cpp src/kernel/kernel_managers.cpp src/kernel/event_queue.cpp $(UNIT_HEADERS) | $(TEST_BIN_DIR)
 	$(CXX) $(CXXFLAGS) -Iinclude -Ilibs -o $@ $< src/cpu/guest_threads.cpp src/cpu/prospero_syscalls.cpp src/cpu/fork_process.cpp src/cpu/thread_scheduler.cpp src/cpu/jit_executor.cpp src/cpu/hle_trampoline.cpp src/cpu/direct_execution.cpp src/cpu/x86_64_interpreter.cpp src/cpu/x86_64_x87.cpp src/cpu/x86_64_isa_ext.cpp src/cpu/x86_64_simd_full.cpp src/cpu/x86_64_subset_interpreter.cpp src/memory/virtual_memory_manager.cpp src/kernel/event_flag.cpp src/kernel/kernel_managers.cpp src/kernel/event_queue.cpp $(LDFLAGS)
@@ -467,6 +476,7 @@ unit: $(UNIT_TESTS)
 	$(KERNEL_EQ_TEST)
 	$(GUEST_BOOT_TEST)
 	$(BOOT_UNALIGNED_TEST)
+	$(HLE_SINGLE_PATH_TEST)
 	$(ET_DYN_BOOT_TEST)
 	$(GCN_DECODER_TEST)
 	$(GCN_SPIRV_FULL_TEST)
